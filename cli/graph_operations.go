@@ -77,6 +77,13 @@ func (cli *CLIService) getDetailedGraphInfo() string {
 		map[bool]string{true: "Directed", false: "Undirected"}[cli.graph.Options.IsDirected],
 		map[bool]string{true: " Multi", false: ""}[cli.graph.Options.IsMulti]))
 
+	info.WriteString("GRAPH ANALYSIS\n")
+	info.WriteString(strings.Repeat("─", 50) + "\n")
+	info.WriteString(fmt.Sprintf("Connected: %v\n", cli.graph.IsConnected()))
+	info.WriteString(fmt.Sprintf("Has cycles: %v\n", cli.graph.HasCycle()))
+	info.WriteString(fmt.Sprintf("Is tree: %v\n", cli.graph.IsTree()))
+	info.WriteString("\n")
+
 	info.WriteString("STATISTICS\n")
 	info.WriteString(strings.Repeat("─", 50) + "\n")
 	info.WriteString(fmt.Sprintf("Total Nodes: %d\n", len(cli.graph.Nodes)))

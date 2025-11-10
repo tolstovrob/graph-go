@@ -244,15 +244,33 @@ func (gr *Graph) RemoveNodeByKey(key TKey) error {
 		return err
 	}
 
-	delete(gr.Nodes, key)
-
-	for _, edge := range gr.Edges {
+	// Remove all edges connected to this node
+	edgesToRemove := make([]TKey, 0)
+	for edgeKey, edge := range gr.Edges {
 		if edge.Source == key || edge.Destination == key {
-			gr.RemoveEdgeByKey(edge.Key)
+			edgesToRemove = append(edgesToRemove, edgeKey)
 		}
 	}
 
-	gr.RebuildAdjacencyMap()
+	for _, edgeKey := range edgesToRemove {
+		delete(gr.Edges, edgeKey)
+	}
+
+	// Remove the node
+	delete(gr.Nodes, key)
+	delete(gr.AdjacencyMap, key)
+
+	// Remove references to this node from other nodes' adjacency lists
+	for nodeKey, neighbors := range gr.AdjacencyMap {
+		filteredNeighbors := make([]TKey, 0)
+		for _, neighbor := range neighbors {
+			if neighbor != key {
+				filteredNeighbors = append(filteredNeighbors, neighbor)
+			}
+		}
+		gr.AdjacencyMap[nodeKey] = filteredNeighbors
+	}
+
 	return nil
 }
 
@@ -340,4 +358,90 @@ func (gr *Graph) ToJSON() (string, error) {
 
 func (gr *Graph) FromJSON(jsonData string) error {
 	return json.Unmarshal([]byte(jsonData), gr)
+}
+
+/*
+ * Following methods are for checking some graph properties.
+ * They are can be useful for some tasks
+ */
+
+func (gr *Graph) IsTree() bool {
+	if len(gr.Nodes) == 0 {
+		return true
+	}
+
+	// Check edge count: tree must have n-1 edges
+	if len(gr.Edges) != len(gr.Nodes)-1 {
+		return false
+	}
+
+	// Check connectivity and acyclicity
+	return gr.IsConnected() && !gr.HasCycle()
+}
+
+func (gr *Graph) IsConnected() bool {
+	if len(gr.Nodes) == 0 {
+		return true
+	}
+
+	visited := make(map[TKey]bool)
+
+	// Start from first node
+	var startKey TKey
+	for key := range gr.Nodes {
+		startKey = key
+		break
+	}
+
+	// BFS traversal
+	queue := []TKey{startKey}
+	visited[startKey] = true
+
+	for len(queue) > 0 {
+		current := queue[0]
+		queue = queue[1:]
+
+		for _, neighbor := range gr.AdjacencyMap[current] {
+			if !visited[neighbor] {
+				visited[neighbor] = true
+				queue = append(queue, neighbor)
+			}
+		}
+	}
+
+	return len(visited) == len(gr.Nodes)
+}
+
+func (gr *Graph) HasCycle() bool {
+	if len(gr.Nodes) == 0 {
+		return false
+	}
+
+	visited := make(map[TKey]bool)
+
+	for node := range gr.Nodes {
+		if !visited[node] {
+			if gr.hasCycleDFS(node, 0, visited) {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+func (gr *Graph) hasCycleDFS(current, parent TKey, visited map[TKey]bool) bool {
+	visited[current] = true
+
+	for _, neighbor := range gr.AdjacencyMap[current] {
+		if !visited[neighbor] {
+			if gr.hasCycleDFS(neighbor, current, visited) {
+				return true
+			}
+		} else if neighbor != parent {
+			return true
+		}
+	}
+
+	return false
 }

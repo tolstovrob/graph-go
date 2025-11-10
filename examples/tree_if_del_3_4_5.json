@@ -1,0 +1,20 @@
+{
+  "nodes": {
+    "1": {"key": 1, "label": "A"},
+    "2": {"key": 2, "label": "B"},
+    "3": {"key": 3, "label": "C"}, 
+    "4": {"key": 4, "label": "D"},
+    "5": {"key": 5, "label": "E"}
+  },
+  "edges": {
+    "1": {"key": 1, "source": 1, "destination": 2, "weight": 1, "label": "A-B"},
+    "2": {"key": 2, "source": 2, "destination": 3, "weight": 1, "label": "B-C"},
+    "3": {"key": 3, "source": 3, "destination": 4, "weight": 1, "label": "C-D"},
+    "4": {"key": 4, "source": 4, "destination": 5, "weight": 1, "label": "D-E"},
+    "5": {"key": 5, "source": 3, "destination": 5, "weight": 1, "label": "C-E"}
+  },
+  "options": {
+    "isMulti": false,
+    "IsDirected": false
+  }
+}

@@ -21,6 +21,7 @@ func (cli *CLIService) showAlgorithmsMenu() {
 		AddItem("In-Degree less than", "Find nodes with in-degree less than target", '1', cli.showInDegreeLessThanForm).
 		AddItem("In-nodes in directed", "Find nodes, that are in-nodes for target in directed graph", '2', cli.showIncomingNeighborsForm).
 		AddItem("Remove pendant", "Remove all pendant nodes. Destructive action", '3', cli.showRemovePendantVertices).
+		AddItem("Vertex to Tree", "Check if removing a vertex makes graph a tree", '4', cli.showVertexToTreeCheck).
 		AddItem("Back to Main Menu", "Return to main menu", 'q', func() {
 			cli.pages.SwitchToPage("main")
 		})
@@ -182,4 +183,56 @@ func (cli *CLIService) executeRemovePendantVertices() {
 
 	cli.showScrollableModal("Pendant Vertices Removal", resultText, "algorithms_menu")
 	cli.updateStatus(fmt.Sprintf("Removed %d pendant vertices", removedNodes), Success)
+}
+
+func (cli *CLIService) showVertexToTreeCheck() {
+	if len(cli.graph.Nodes) > 20 {
+		modal := tview.NewModal().
+			SetText(fmt.Sprintf("Graph has %d vertices. This operation may take some time. Continue?", len(cli.graph.Nodes))).
+			AddButtons([]string{"Continue", "Cancel"}).
+			SetDoneFunc(func(buttonIndex int, buttonLabel string) {
+				switch buttonLabel {
+				case "Continue":
+					cli.executeVertexToTreeCheck()
+				case "Cancel":
+					cli.pages.SwitchToPage("algorithms_menu")
+				}
+			})
+		cli.pages.AddAndSwitchToPage("vertex_tree_confirm", modal, true)
+	} else {
+		cli.executeVertexToTreeCheck()
+	}
+}
+
+func (cli *CLIService) executeVertexToTreeCheck() {
+	cli.updateStatus("Checking vertices... This may take a while for large graphs", Default)
+
+	go func() {
+		result, candidates, err := algo.CanRemoveVertexToMakeTree(cli.graph)
+
+		cli.app.QueueUpdateDraw(func() {
+			var resultText string
+			if err != nil {
+				resultText = fmt.Sprintf("Error: %v", err)
+				cli.updateStatus("Algorithm failed", Error)
+			} else if result {
+				resultText = fmt.Sprintf("SUCCESS: Graph can become a tree by removing %d vertex(es):\n\n", len(candidates))
+				for i, vertex := range candidates {
+					node, _ := cli.graph.GetNodeByKey(vertex)
+					if node != nil && node.Label != "" {
+						resultText += fmt.Sprintf("%d. Node %d (Label: %s)\n", i+1, vertex, node.Label)
+					} else {
+						resultText += fmt.Sprintf("%d. Node %d\n", i+1, vertex)
+					}
+				}
+				resultText += fmt.Sprintf("\nTotal: %d candidate vertices", len(candidates))
+				cli.updateStatus(fmt.Sprintf("Found %d candidate vertices", len(candidates)), Success)
+			} else {
+				resultText = "No such vertex exists - removing any vertex cannot make this graph a tree"
+				cli.updateStatus("No candidate vertices found", Default)
+			}
+
+			cli.showScrollableModal("Vertex to Tree Check", resultText, "algorithms_menu")
+		})
+	}()
 }
