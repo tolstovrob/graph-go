@@ -445,3 +445,81 @@ func (gr *Graph) hasCycleDFS(current, parent TKey, visited map[TKey]bool) bool {
 
 	return false
 }
+
+// GetConnectedComponents returns the number of connected components in the graph
+func (gr *Graph) GetConnectedComponents() int {
+	if len(gr.Nodes) == 0 {
+		return 0
+	}
+
+	visited := make(map[TKey]bool)
+	componentCount := 0
+
+	for node := range gr.Nodes {
+		if !visited[node] {
+			componentCount++
+			gr.bfsComponent(node, visited)
+		}
+	}
+
+	return componentCount
+}
+
+// bfsComponent performs BFS to mark all nodes in the same connected component
+func (gr *Graph) bfsComponent(start TKey, visited map[TKey]bool) {
+	queue := []TKey{start}
+	visited[start] = true
+
+	for len(queue) > 0 {
+		current := queue[0]
+		queue = queue[1:]
+
+		for _, neighbor := range gr.AdjacencyMap[current] {
+			if !visited[neighbor] {
+				visited[neighbor] = true
+				queue = append(queue, neighbor)
+			}
+		}
+	}
+}
+
+// GetComponentSizes returns the sizes of all connected components
+func (gr *Graph) GetComponentSizes() []int {
+	if len(gr.Nodes) == 0 {
+		return []int{}
+	}
+
+	visited := make(map[TKey]bool)
+	var sizes []int
+
+	for node := range gr.Nodes {
+		if !visited[node] {
+			size := gr.bfsComponentWithSize(node, visited)
+			sizes = append(sizes, size)
+		}
+	}
+
+	return sizes
+}
+
+// bfsComponentWithSize performs BFS and returns the size of the component
+func (gr *Graph) bfsComponentWithSize(start TKey, visited map[TKey]bool) int {
+	queue := []TKey{start}
+	visited[start] = true
+	size := 1
+
+	for len(queue) > 0 {
+		current := queue[0]
+		queue = queue[1:]
+
+		for _, neighbor := range gr.AdjacencyMap[current] {
+			if !visited[neighbor] {
+				visited[neighbor] = true
+				queue = append(queue, neighbor)
+				size++
+			}
+		}
+	}
+
+	return size
+}

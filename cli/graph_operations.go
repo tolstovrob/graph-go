@@ -80,6 +80,7 @@ func (cli *CLIService) getDetailedGraphInfo() string {
 	info.WriteString("GRAPH ANALYSIS\n")
 	info.WriteString(strings.Repeat("─", 50) + "\n")
 	info.WriteString(fmt.Sprintf("Connected: %v\n", cli.graph.IsConnected()))
+	info.WriteString(fmt.Sprintf("Connected components: %d\n", cli.graph.GetConnectedComponents()))
 	info.WriteString(fmt.Sprintf("Has cycles: %v\n", cli.graph.HasCycle()))
 	info.WriteString(fmt.Sprintf("Is tree: %v\n", cli.graph.IsTree()))
 	info.WriteString("\n")

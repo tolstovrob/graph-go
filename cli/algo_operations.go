@@ -22,6 +22,7 @@ func (cli *CLIService) showAlgorithmsMenu() {
 		AddItem("In-nodes in directed", "Find nodes, that are in-nodes for target in directed graph", '2', cli.showIncomingNeighborsForm).
 		AddItem("Remove pendant", "Remove all pendant nodes. Destructive action", '3', cli.showRemovePendantVertices).
 		AddItem("Vertex to Tree", "Check if removing a vertex makes graph a tree", '4', cli.showVertexToTreeCheck).
+		AddItem("Connected Components", "Count and analyze connected components", '5', cli.showConnectedComponentsAnalysis). // НОВЫЙ ПУНКТ
 		AddItem("Back to Main Menu", "Return to main menu", 'q', func() {
 			cli.pages.SwitchToPage("main")
 		})
@@ -235,4 +236,47 @@ func (cli *CLIService) executeVertexToTreeCheck() {
 			cli.showScrollableModal("Vertex to Tree Check", resultText, "algorithms_menu")
 		})
 	}()
+}
+
+func (cli *CLIService) showConnectedComponentsAnalysis() {
+	analysis, err := algo.AnalyzeConnectedComponents(cli.graph)
+
+	var resultText string
+	if err != nil {
+		resultText = fmt.Sprintf("Error: %v", err)
+		cli.updateStatus("Analysis failed", Error)
+	} else {
+		resultText = fmt.Sprintf("CONNECTED COMPONENTS ANALYSIS\n\n")
+		resultText += fmt.Sprintf("Total components: %d\n", analysis.TotalComponents)
+		resultText += fmt.Sprintf("Graph is connected: %v\n", analysis.IsConnected)
+
+		if analysis.TotalComponents > 0 {
+			resultText += fmt.Sprintf("\nCOMPONENT SIZES:\n")
+			for i, size := range analysis.ComponentSizes {
+				resultText += fmt.Sprintf("Component %d: %d vertices\n", i+1, size)
+			}
+
+			resultText += fmt.Sprintf("\nSTATISTICS:\n")
+			resultText += fmt.Sprintf("Largest component: %d vertices\n", analysis.LargestComponent)
+			resultText += fmt.Sprintf("Smallest component: %d vertices\n", analysis.SmallestComponent)
+
+			if analysis.TotalComponents > 1 {
+				resultText += fmt.Sprintf("Isolated vertices: %d\n", countIsolatedVertices(analysis.ComponentSizes))
+			}
+		}
+
+		cli.updateStatus(fmt.Sprintf("Found %d connected components", analysis.TotalComponents), Success)
+	}
+
+	cli.showScrollableModal("Connected Components Analysis", resultText, "algorithms_menu")
+}
+
+func countIsolatedVertices(sizes []int) int {
+	count := 0
+	for _, size := range sizes {
+		if size == 1 {
+			count++
+		}
+	}
+	return count
 }
