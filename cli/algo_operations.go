@@ -22,7 +22,8 @@ func (cli *CLIService) showAlgorithmsMenu() {
 		AddItem("In-nodes in directed", "Find nodes, that are in-nodes for target in directed graph", '2', cli.showIncomingNeighborsForm).
 		AddItem("Remove pendant", "Remove all pendant nodes. Destructive action", '3', cli.showRemovePendantVertices).
 		AddItem("Vertex to Tree", "Check if removing a vertex makes graph a tree", '4', cli.showVertexToTreeCheck).
-		AddItem("Connected Components", "Count and analyze connected components", '5', cli.showConnectedComponentsAnalysis). // НОВЫЙ ПУНКТ
+		AddItem("Connected Components", "Count and analyze connected components", '5', cli.showConnectedComponentsAnalysis).
+		AddItem("Minimum Spanning Tree", "Find MST using Prim's algorithm", '6', cli.showMSTPrim).
 		AddItem("Back to Main Menu", "Return to main menu", 'q', func() {
 			cli.pages.SwitchToPage("main")
 		})
@@ -279,4 +280,66 @@ func countIsolatedVertices(sizes []int) int {
 		}
 	}
 	return count
+}
+
+func (cli *CLIService) showMSTPrim() {
+	cli.updateStatus("Finding Minimum Spanning Tree using Prim's algorithm...", Default)
+
+	go func() {
+		result, err := algo.FindMSTPrim(cli.graph)
+
+		cli.app.QueueUpdateDraw(func() {
+			var resultText string
+			if err != nil {
+				resultText = fmt.Sprintf("Error: %v", err)
+				cli.updateStatus("MST calculation failed", Error)
+			} else if !result.IsPossible {
+				resultText = "MINIMUM SPANNING TREE ANALYSIS\n\n"
+				resultText += "❌ MST is NOT possible for this graph\n\n"
+				resultText += "Reason: Graph is not connected\n"
+				resultText += "Prim's algorithm requires the graph to be connected to find a spanning tree."
+				cli.updateStatus("Graph is not connected - MST not possible", Error)
+			} else {
+				resultText = fmt.Sprintf("MINIMUM SPANNING TREE (Prim's Algorithm)\n\n")
+				resultText += fmt.Sprintf("Total weight: %d\n", result.TotalWeight)
+				resultText += fmt.Sprintf("Number of edges in MST: %d\n", len(result.Edges))
+				resultText += fmt.Sprintf("Theoretical minimum edges: %d\n\n", len(cli.graph.Nodes)-1)
+
+				resultText += fmt.Sprintf("MST EDGES:\n")
+				resultText += fmt.Sprintf("%-8s %-8s %-8s %-12s %s\n", "Key", "From", "To", "Weight", "Label")
+				resultText += fmt.Sprintf("%-8s %-8s %-8s %-12s %s\n", "────", "────", "──", "──────", "─────")
+
+				for _, edge := range result.Edges {
+					srcNode, _ := cli.graph.GetNodeByKey(edge.Source)
+					dstNode, _ := cli.graph.GetNodeByKey(edge.Destination)
+
+					srcLabel := fmt.Sprintf("%d", edge.Source)
+					if srcNode != nil && srcNode.Label != "" {
+						srcLabel = fmt.Sprintf("%d(%s)", edge.Source, srcNode.Label)
+					}
+
+					dstLabel := fmt.Sprintf("%d", edge.Destination)
+					if dstNode != nil && dstNode.Label != "" {
+						dstLabel = fmt.Sprintf("%d(%s)", edge.Destination, dstNode.Label)
+					}
+
+					resultText += fmt.Sprintf("%-8d %-8s %-8s %-12d %s\n",
+						edge.Key, srcLabel, dstLabel, edge.Weight, edge.Label)
+				}
+
+				resultText += fmt.Sprintf("\nGRAPH INFORMATION:\n")
+				resultText += fmt.Sprintf("Original graph: %d nodes, %d edges\n", len(cli.graph.Nodes), len(cli.graph.Edges))
+				resultText += fmt.Sprintf("MST covers: %d nodes, %d edges\n", len(cli.graph.Nodes), len(result.Edges))
+
+				if len(result.Edges) != len(cli.graph.Nodes)-1 {
+					resultText += fmt.Sprintf("\n⚠️  Warning: MST has %d edges but expected %d for %d nodes\n",
+						len(result.Edges), len(cli.graph.Nodes)-1, len(cli.graph.Nodes))
+				}
+
+				cli.updateStatus(fmt.Sprintf("MST found with total weight %d", result.TotalWeight), Success)
+			}
+
+			cli.showScrollableModal("Minimum Spanning Tree", resultText, "algorithms_menu")
+		})
+	}()
 }
