@@ -10,5 +10,5 @@ package graph
 
 type Option[T any] func(*T) // Type representing functional options pattern
 
-type TKey uint64    // Key type. Can be replaced with any UNIQUE type
-type TWeight uint64 // Weight type. Can be replaced with any COMPARABLE type
+type TKey uint64   // Key type. Can be replaced with any UNIQUE type
+type TWeight int64 // Weight type. Can be replaced with any COMPARABLE type
