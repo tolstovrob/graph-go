@@ -24,6 +24,7 @@ func (cli *CLIService) showAlgorithmsMenu() {
 		AddItem("Vertex to Tree", "Check if removing a vertex makes graph a tree", '4', cli.showVertexToTreeCheck).
 		AddItem("Connected Components", "Count and analyze connected components", '5', cli.showConnectedComponentsAnalysis).
 		AddItem("Minimum Spanning Tree", "Find MST using Prim's algorithm", '6', cli.showMSTPrim).
+		AddItem("All Pairs Shortest Path", "Find shortest paths between all vertices", '7', cli.showAllPairsShortestPath).
 		AddItem("Back to Main Menu", "Return to main menu", 'q', func() {
 			cli.pages.SwitchToPage("main")
 		})
@@ -31,7 +32,6 @@ func (cli *CLIService) showAlgorithmsMenu() {
 	list.SetBorder(true).SetTitle(" Graph Algorithms ")
 	cli.pages.AddAndSwitchToPage("algorithms_menu", list, true)
 }
-
 func (cli *CLIService) showInDegreeLessThanForm() {
 	form := tview.NewForm()
 	var targetKey string
@@ -295,7 +295,7 @@ func (cli *CLIService) showMSTPrim() {
 				cli.updateStatus("MST calculation failed", Error)
 			} else if !result.IsPossible {
 				resultText = "MINIMUM SPANNING TREE ANALYSIS\n\n"
-				resultText += "❌ MST is NOT possible for this graph\n\n"
+				resultText += "MST is NOT possible for this graph\n\n"
 				resultText += "Reason: Graph is not connected\n"
 				resultText += "Prim's algorithm requires the graph to be connected to find a spanning tree."
 				cli.updateStatus("Graph is not connected - MST not possible", Error)
@@ -332,7 +332,7 @@ func (cli *CLIService) showMSTPrim() {
 				resultText += fmt.Sprintf("MST covers: %d nodes, %d edges\n", len(cli.graph.Nodes), len(result.Edges))
 
 				if len(result.Edges) != len(cli.graph.Nodes)-1 {
-					resultText += fmt.Sprintf("\n⚠️  Warning: MST has %d edges but expected %d for %d nodes\n",
+					resultText += fmt.Sprintf("\nWarning: MST has %d edges but expected %d for %d nodes\n",
 						len(result.Edges), len(cli.graph.Nodes)-1, len(cli.graph.Nodes))
 				}
 
@@ -340,6 +340,30 @@ func (cli *CLIService) showMSTPrim() {
 			}
 
 			cli.showScrollableModal("Minimum Spanning Tree", resultText, "algorithms_menu")
+		})
+	}()
+}
+
+func (cli *CLIService) showAllPairsShortestPath() {
+	cli.updateStatus("Computing shortest paths between all pairs of vertices...", Default)
+
+	go func() {
+		result, err := algo.FindAllPairsShortestPath(cli.graph)
+
+		cli.app.QueueUpdateDraw(func() {
+			var resultText string
+			if err != nil {
+				resultText = fmt.Sprintf("Error: %v", err)
+				cli.updateStatus("Shortest path computation failed", Error)
+			} else if !result.IsValid {
+				resultText = result.Message
+				cli.updateStatus("Invalid graph for shortest paths", Error)
+			} else {
+				resultText = result.FormatDistanceMatrix(cli.graph)
+				cli.updateStatus("All-pairs shortest paths computed successfully", Success)
+			}
+
+			cli.showScrollableModal("All Pairs Shortest Path", resultText, "algorithms_menu")
 		})
 	}()
 }
