@@ -25,6 +25,7 @@ func (cli *CLIService) showAlgorithmsMenu() {
 		AddItem("Connected Components", "Count and analyze connected components", '5', cli.showConnectedComponentsAnalysis).
 		AddItem("Minimum Spanning Tree", "Find MST using Prim's algorithm", '6', cli.showMSTPrim).
 		AddItem("All Pairs Shortest Path", "Find shortest paths between all vertices", '7', cli.showAllPairsShortestPath).
+		AddItem("Eccentricity and Radius", "Find eccentricity of vertices and graph radius", '8', cli.showEccentricityAndRadius).
 		AddItem("Back to Main Menu", "Return to main menu", 'q', func() {
 			cli.pages.SwitchToPage("main")
 		})
@@ -364,6 +365,27 @@ func (cli *CLIService) showAllPairsShortestPath() {
 			}
 
 			cli.showScrollableModal("All Pairs Shortest Path", resultText, "algorithms_menu")
+		})
+	}()
+}
+
+func (cli *CLIService) showEccentricityAndRadius() {
+	cli.updateStatus("Calculating eccentricity and radius using Dijkstra's algorithm...", Default)
+
+	go func() {
+		result, err := algo.FindEccentricityAndRadius(cli.graph)
+
+		cli.app.QueueUpdateDraw(func() {
+			var resultText string
+			if err != nil {
+				resultText = fmt.Sprintf("Error: %v", err)
+				cli.updateStatus("Eccentricity calculation failed", Error)
+			} else {
+				resultText = result.FormatEccentricityResult(cli.graph)
+				cli.updateStatus("Eccentricity and radius calculated successfully", Success)
+			}
+
+			cli.showScrollableModal("Eccentricity and Radius", resultText, "algorithms_menu")
 		})
 	}()
 }
