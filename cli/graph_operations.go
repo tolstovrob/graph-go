@@ -199,7 +199,7 @@ func (cli *CLIService) showLoadJSONForm() {
 	form := tview.NewForm()
 	var filename string
 
-	form.AddInputField("Filename", "graph.json", 30, nil, func(text string) {
+	form.AddInputField("Filename", "examples/tasks/", 30, nil, func(text string) {
 		filename = text
 	})
 	form.AddButton("Load", func() {
