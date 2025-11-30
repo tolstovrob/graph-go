@@ -16,6 +16,7 @@ import (
  * Task: Find maximum flow using Edmonds-Karp algorithm (BFS-based Ford-Fulkerson)
  */
 
+// FlowEdge represents an edge with flow information
 type FlowEdge struct {
 	Source      graph.TKey    `json:"source"`
 	Destination graph.TKey    `json:"destination"`
@@ -23,6 +24,7 @@ type FlowEdge struct {
 	Flow        graph.TWeight `json:"flow"`
 }
 
+// MaxFlowResult contains the result of maximum flow calculation
 type MaxFlowResult struct {
 	MaxFlowValue graph.TWeight `json:"max_flow_value"`
 	Source       graph.TKey    `json:"source"`
@@ -38,6 +40,7 @@ func FindMaxFlow(gr *graph.Graph, source, sink graph.TKey) (*MaxFlowResult, erro
 		return nil, graph.ThrowNodesListIsNil()
 	}
 
+	// Validate source and sink nodes
 	if _, err := gr.GetNodeByKey(source); err != nil {
 		return nil, fmt.Errorf("source node %d does not exist", source)
 	}
@@ -50,61 +53,25 @@ func FindMaxFlow(gr *graph.Graph, source, sink graph.TKey) (*MaxFlowResult, erro
 		return nil, fmt.Errorf("source and sink cannot be the same node")
 	}
 
-	// Create residual graph
+	// Create residual graph and initialize flow
 	residualGraph := createResidualGraph(gr)
+	flowMap := initializeFlowMap(gr)
 
-	// Initialize flow
 	maxFlow := graph.TWeight(0)
-	flowMap := make(map[graph.TKey]map[graph.TKey]graph.TWeight)
 
-	// Initialize flow map
-	for u := range gr.Nodes {
-		flowMap[u] = make(map[graph.TKey]graph.TWeight)
-		for v := range gr.Nodes {
-			flowMap[u][v] = 0
-		}
-	}
-
-	// Edmonds-Karp algorithm
+	// Edmonds-Karp algorithm: repeatedly find augmenting paths using BFS
 	for {
-		// Find augmenting path using BFS
+		// Find augmenting path in residual graph
 		path, parent := findAugmentingPath(residualGraph, source, sink)
 		if path == nil {
-			break
+			break // No more augmenting paths
 		}
 
-		// Find minimum residual capacity along the path
-		pathFlow := graph.TWeight(1 << 30) // Large number
-		v := sink
-		for v != source {
-			u := parent[v]
-			residualCapacity := residualGraph[u][v]
-			if residualCapacity < pathFlow {
-				pathFlow = residualCapacity
-			}
-			v = u
-		}
+		// Find bottleneck capacity in the path
+		pathFlow := findBottleneckCapacity(residualGraph, path, parent, sink)
 
-		// Update residual capacities and flow
-		v = sink
-		for v != source {
-			u := parent[v]
-
-			// Update residual graph
-			residualGraph[u][v] -= pathFlow
-			residualGraph[v][u] += pathFlow
-
-			// Update flow
-			if _, exists := gr.Edges[getEdgeKey(gr, u, v)]; exists {
-				// Forward edge
-				flowMap[u][v] += pathFlow
-			} else {
-				// Backward edge (subtract flow)
-				flowMap[v][u] -= pathFlow
-			}
-
-			v = u
-		}
+		// Update residual capacities and flow along the path
+		updateResidualGraph(residualGraph, flowMap, path, parent, pathFlow, sink, gr)
 
 		maxFlow += pathFlow
 	}
@@ -123,11 +90,11 @@ func FindMaxFlow(gr *graph.Graph, source, sink graph.TKey) (*MaxFlowResult, erro
 	}, nil
 }
 
-// createResidualGraph creates the residual graph from the original graph
+// createResidualGraph creates the residual graph from original graph
 func createResidualGraph(gr *graph.Graph) map[graph.TKey]map[graph.TKey]graph.TWeight {
 	residual := make(map[graph.TKey]map[graph.TKey]graph.TWeight)
 
-	// Initialize residual graph
+	// Initialize residual capacities
 	for u := range gr.Nodes {
 		residual[u] = make(map[graph.TKey]graph.TWeight)
 		for v := range gr.Nodes {
@@ -135,12 +102,11 @@ func createResidualGraph(gr *graph.Graph) map[graph.TKey]map[graph.TKey]graph.TW
 		}
 	}
 
-	// Fill with capacities from original edges
+	// Set initial capacities from original edges
 	for _, edge := range gr.Edges {
-		// Use weight as capacity, if weight is 0, assume capacity 1
 		capacity := edge.Weight
 		if capacity <= 0 {
-			capacity = 1
+			capacity = 1 // Default capacity for zero/negative weights
 		}
 		residual[edge.Source][edge.Destination] = capacity
 	}
@@ -148,7 +114,19 @@ func createResidualGraph(gr *graph.Graph) map[graph.TKey]map[graph.TKey]graph.TW
 	return residual
 }
 
-// findAugmentingPath finds an augmenting path using BFS
+// initializeFlowMap creates initial flow map with zero flow
+func initializeFlowMap(gr *graph.Graph) map[graph.TKey]map[graph.TKey]graph.TWeight {
+	flowMap := make(map[graph.TKey]map[graph.TKey]graph.TWeight)
+	for u := range gr.Nodes {
+		flowMap[u] = make(map[graph.TKey]graph.TWeight)
+		for v := range gr.Nodes {
+			flowMap[u][v] = 0
+		}
+	}
+	return flowMap
+}
+
+// findAugmentingPath finds a path from source to sink using BFS
 func findAugmentingPath(residualGraph map[graph.TKey]map[graph.TKey]graph.TWeight, source, sink graph.TKey) ([]graph.TKey, map[graph.TKey]graph.TKey) {
 	visited := make(map[graph.TKey]bool)
 	parent := make(map[graph.TKey]graph.TKey)
@@ -159,22 +137,16 @@ func findAugmentingPath(residualGraph map[graph.TKey]map[graph.TKey]graph.TWeigh
 		u := queue[0]
 		queue = queue[1:]
 
+		// Check all neighbors with positive residual capacity
 		for v, capacity := range residualGraph[u] {
 			if !visited[v] && capacity > 0 {
 				parent[v] = u
 				visited[v] = true
 				queue = append(queue, v)
 
+				// If we reached sink, reconstruct path
 				if v == sink {
-					// Reconstruct path
-					path := []graph.TKey{}
-					curr := sink
-					for curr != source {
-						path = append([]graph.TKey{curr}, path...)
-						curr = parent[curr]
-					}
-					path = append([]graph.TKey{source}, path...)
-					return path, parent
+					return reconstructPath(parent, source, sink), parent
 				}
 			}
 		}
@@ -183,17 +155,70 @@ func findAugmentingPath(residualGraph map[graph.TKey]map[graph.TKey]graph.TWeigh
 	return nil, parent
 }
 
-// getEdgeKey finds the key of an edge between two nodes
-func getEdgeKey(gr *graph.Graph, u, v graph.TKey) graph.TKey {
-	for key, edge := range gr.Edges {
-		if edge.Source == u && edge.Destination == v {
-			return key
-		}
+// reconstructPath builds the path from parent pointers
+func reconstructPath(parent map[graph.TKey]graph.TKey, source, sink graph.TKey) []graph.TKey {
+	path := []graph.TKey{}
+	current := sink
+
+	for current != source {
+		path = append([]graph.TKey{current}, path...)
+		current = parent[current]
 	}
-	return 0
+	path = append([]graph.TKey{source}, path...)
+
+	return path
 }
 
-// buildFlowEdges builds the list of flow edges from the flow map
+// findBottleneckCapacity finds the minimum residual capacity along the path
+func findBottleneckCapacity(residualGraph map[graph.TKey]map[graph.TKey]graph.TWeight, path []graph.TKey, parent map[graph.TKey]graph.TKey, sink graph.TKey) graph.TWeight {
+	bottleneck := graph.TWeight(1 << 30) // Large number
+	v := sink
+
+	for v != path[0] { // While not at source
+		u := parent[v]
+		if residualGraph[u][v] < bottleneck {
+			bottleneck = residualGraph[u][v]
+		}
+		v = u
+	}
+
+	return bottleneck
+}
+
+// updateResidualGraph updates residual capacities and flow after augmenting path
+func updateResidualGraph(residualGraph map[graph.TKey]map[graph.TKey]graph.TWeight, flowMap map[graph.TKey]map[graph.TKey]graph.TWeight, path []graph.TKey, parent map[graph.TKey]graph.TKey, pathFlow graph.TWeight, sink graph.TKey, gr *graph.Graph) {
+	v := sink
+
+	for v != path[0] { // While not at source
+		u := parent[v]
+
+		// Update residual capacities
+		residualGraph[u][v] -= pathFlow
+		residualGraph[v][u] += pathFlow
+
+		// Update flow
+		if hasOriginalEdge(gr, u, v) {
+			flowMap[u][v] += pathFlow
+		} else {
+			// Backward edge - subtract flow
+			flowMap[v][u] -= pathFlow
+		}
+
+		v = u
+	}
+}
+
+// hasOriginalEdge checks if an edge exists in the original graph
+func hasOriginalEdge(gr *graph.Graph, u, v graph.TKey) bool {
+	for _, edge := range gr.Edges {
+		if edge.Source == u && edge.Destination == v {
+			return true
+		}
+	}
+	return false
+}
+
+// buildFlowEdges creates the list of flow edges from flow map
 func buildFlowEdges(gr *graph.Graph, flowMap map[graph.TKey]map[graph.TKey]graph.TWeight) []FlowEdge {
 	flowEdges := []FlowEdge{}
 
@@ -312,7 +337,9 @@ func (result *MaxFlowResult) FormatMaxFlowResult(gr *graph.Graph) string {
 	sb.WriteString(strings.Repeat("─", 40) + "\n")
 	sb.WriteString(fmt.Sprintf("Total capacity: %d\n", totalCapacity))
 	sb.WriteString(fmt.Sprintf("Total flow: %d\n", totalFlow))
-	sb.WriteString(fmt.Sprintf("Flow efficiency: %.1f%%\n", float64(totalFlow)*100/float64(totalCapacity)))
+	if totalCapacity > 0 {
+		sb.WriteString(fmt.Sprintf("Flow efficiency: %.1f%%\n", float64(totalFlow)*100/float64(totalCapacity)))
+	}
 
 	sb.WriteString(fmt.Sprintf("\nMINIMUM CUT (%d nodes):\n", len(result.MinCut)))
 	for i, node := range result.MinCut {
