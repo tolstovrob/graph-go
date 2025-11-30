@@ -170,13 +170,3 @@ func getEdgeBetweenReliable(gr *graph.Graph, u, v graph.TKey) *graph.Edge {
 	// No edge found between u and v
 	return nil
 }
-
-func getEdgeWeight(gr *graph.Graph, u, v graph.TKey) graph.TWeight {
-	for _, edge := range gr.Edges {
-		if (edge.Source == u && edge.Destination == v) ||
-			(!gr.Options.IsDirected && edge.Source == v && edge.Destination == u) {
-			return edge.Weight
-		}
-	}
-	return ^graph.TWeight(0) // Return "infinity" if no edge found
-}

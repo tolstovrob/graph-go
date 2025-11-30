@@ -15,24 +15,31 @@ import (
 
 /*
  * Task: Find eccentricity of vertices and graph radius using Dijkstra's algorithm
+ *
+ * Eccentricity of a vertex = maximum shortest path distance from that vertex to all other vertices
+ * Graph Radius = minimum eccentricity among all vertices
+ * Graph Diameter = maximum eccentricity among all vertices
  */
 
+// EccentricityResult represents the result of eccentricity and radius calculation
 type EccentricityResult struct {
-	Eccentricities     map[graph.TKey]int64 `json:"eccentricities"`
-	Radius             int64                `json:"radius"`
-	Diameter           int64                `json:"diameter"`
-	CenterVertices     []graph.TKey         `json:"center_vertices"`
-	PeripheralVertices []graph.TKey         `json:"peripheral_vertices"`
-	IsConnected        bool                 `json:"is_connected"`
-	Message            string               `json:"message"`
+	Eccentricities     map[graph.TKey]int64 // Eccentricity value for each vertex
+	Radius             int64                // Graph radius (minimum eccentricity)
+	Diameter           int64                // Graph diameter (maximum eccentricity)
+	CenterVertices     []graph.TKey         // Vertices with eccentricity = radius
+	PeripheralVertices []graph.TKey         // Vertices with eccentricity = diameter
+	IsConnected        bool                 // Whether graph is connected
+	Message            string               // Status message
 }
 
 // FindEccentricityAndRadius calculates eccentricity for all vertices and graph radius
+// Time Complexity: O(V * E log V) with Dijkstra for each vertex
 func FindEccentricityAndRadius(gr *graph.Graph) (*EccentricityResult, error) {
 	if gr.Nodes == nil {
 		return nil, graph.ThrowNodesListIsNil()
 	}
 
+	// Handle empty graph case
 	if len(gr.Nodes) == 0 {
 		return &EccentricityResult{
 			Eccentricities:     make(map[graph.TKey]int64),
@@ -45,23 +52,23 @@ func FindEccentricityAndRadius(gr *graph.Graph) (*EccentricityResult, error) {
 		}, nil
 	}
 
-	// Check for negative weights
+	// Step 1: Check for negative weights - Dijkstra cannot handle them
 	for _, edge := range gr.Edges {
 		if edge.Weight < 0 {
 			return nil, fmt.Errorf("Dijkstra's algorithm cannot handle negative weights. Edge %d has weight %d", edge.Key, edge.Weight)
 		}
 	}
 
+	// For each vertex, find maximum distance to all other vertices
 	eccentricities := make(map[graph.TKey]int64)
-
-	// Calculate eccentricity for each vertex
 	for vertex := range gr.Nodes {
+		// Run Dijkstra from current vertex to find shortest paths to all others
 		distances, err := dijkstra(gr, vertex)
 		if err != nil {
 			return nil, err
 		}
 
-		// Eccentricity is the maximum distance from this vertex to any other reachable vertex
+		// Eccentricity = maximum distance to any reachable vertex
 		eccentricity := int64(0)
 		for _, dist := range distances {
 			if dist > eccentricity && dist != math.MaxInt64 {
@@ -69,7 +76,8 @@ func FindEccentricityAndRadius(gr *graph.Graph) (*EccentricityResult, error) {
 			}
 		}
 
-		// If any vertex is unreachable, eccentricity is infinite (represented as MaxInt64)
+		// If any vertex is unreachable, graph is disconnected
+		// In disconnected graphs, eccentricity is considered infinite
 		for _, dist := range distances {
 			if dist == math.MaxInt64 {
 				eccentricity = math.MaxInt64
@@ -80,13 +88,14 @@ func FindEccentricityAndRadius(gr *graph.Graph) (*EccentricityResult, error) {
 		eccentricities[vertex] = eccentricity
 	}
 
-	// Calculate radius (minimum eccentricity) and diameter (maximum eccentricity)
-	radius := int64(math.MaxInt64)
-	diameter := int64(0)
+	// Step 3: Calculate radius and diameter
+	radius := int64(math.MaxInt64) // Start with "infinity"
+	diameter := int64(0)           // Start with 0
 	var centerVertices, peripheralVertices []graph.TKey
 
+	// Find minimum and maximum eccentricity values
 	for _, ecc := range eccentricities {
-		if ecc != math.MaxInt64 {
+		if ecc != math.MaxInt64 { // Only consider reachable vertices
 			if ecc < radius {
 				radius = ecc
 			}
@@ -96,8 +105,7 @@ func FindEccentricityAndRadius(gr *graph.Graph) (*EccentricityResult, error) {
 		}
 	}
 
-	// Find center vertices (vertices with eccentricity = radius)
-	// and peripheral vertices (vertices with eccentricity = diameter)
+	// Step 4: Find center and peripheral vertices
 	for vertex, ecc := range eccentricities {
 		if ecc == radius {
 			centerVertices = append(centerVertices, vertex)
@@ -107,9 +115,9 @@ func FindEccentricityAndRadius(gr *graph.Graph) (*EccentricityResult, error) {
 		}
 	}
 
-	// If graph is disconnected, radius and diameter are infinite
+	// Step 5: Handle disconnected graphs
 	if radius == math.MaxInt64 {
-		radius = -1 // Represent disconnected case
+		radius = -1 // Special value for disconnected graphs
 		diameter = -1
 	}
 
@@ -125,18 +133,20 @@ func FindEccentricityAndRadius(gr *graph.Graph) (*EccentricityResult, error) {
 }
 
 // dijkstra implements Dijkstra's algorithm for single-source shortest paths
+// Returns distances from source vertex to all other vertices
 func dijkstra(gr *graph.Graph, source graph.TKey) (map[graph.TKey]int64, error) {
 	distances := make(map[graph.TKey]int64)
 	visited := make(map[graph.TKey]bool)
 
-	// Initialize distances
+	// Initialize all distances to "infinity"
 	for vertex := range gr.Nodes {
 		distances[vertex] = math.MaxInt64
 	}
-	distances[source] = 0
+	distances[source] = 0 // Distance to self is 0
 
+	// Main Dijkstra loop - process all vertices
 	for len(visited) < len(gr.Nodes) {
-		// Find vertex with minimum distance
+		// Find unvisited vertex with minimum distance
 		minVertex := graph.TKey(0)
 		minDist := math.MaxInt64
 
@@ -147,24 +157,26 @@ func dijkstra(gr *graph.Graph, source graph.TKey) (map[graph.TKey]int64, error) 
 			}
 		}
 
-		// If no more reachable vertices, break
+		// If no more reachable vertices, stop
 		if minDist == math.MaxInt64 {
 			break
 		}
 
+		// Mark vertex as visited
 		visited[minVertex] = true
 
-		// Update distances to neighbors
+		// Update distances to all neighbors
 		for _, neighbor := range gr.AdjacencyMap[minVertex] {
 			if !visited[neighbor] {
 				edgeWeight := getEdgeWeight(gr, minVertex, neighbor)
 				if edgeWeight == math.MaxInt64 {
-					continue
+					continue // No edge exists
 				}
 
-				newDist := graph.TWeight(distances[minVertex]) + graph.TWeight(edgeWeight)
-				if newDist < graph.TWeight(distances[neighbor]) {
-					distances[neighbor] = int64(newDist)
+				// Relaxation step: update distance if shorter path found
+				newDist := distances[minVertex] + edgeWeight
+				if newDist < distances[neighbor] {
+					distances[neighbor] = newDist
 				}
 			}
 		}
@@ -173,7 +185,16 @@ func dijkstra(gr *graph.Graph, source graph.TKey) (map[graph.TKey]int64, error) 
 	return distances, nil
 }
 
-// DECLARED floyd --- func getEdgeWeight(gr *graph.Graph, u, v graph.TKey) int64 {
+// getEdgeWeight finds the weight of an edge between two vertices
+func getEdgeWeight(gr *graph.Graph, u, v graph.TKey) int64 {
+	for _, edge := range gr.Edges {
+		if (edge.Source == u && edge.Destination == v) ||
+			(!gr.Options.IsDirected && edge.Source == v && edge.Destination == u) {
+			return int64(edge.Weight)
+		}
+	}
+	return math.MaxInt64 // No edge found
+}
 
 // FormatEccentricityResult creates a formatted string representation
 func (result *EccentricityResult) FormatEccentricityResult(gr *graph.Graph) string {
@@ -198,6 +219,7 @@ func (result *EccentricityResult) FormatEccentricityResult(gr *graph.Graph) stri
 	}
 	sort.Slice(vertices, func(i, j int) bool { return vertices[i] < vertices[j] })
 
+	// Display eccentricity for each vertex
 	for _, vertex := range vertices {
 		ecc := result.Eccentricities[vertex]
 		node, _ := gr.GetNodeByKey(vertex)
@@ -209,6 +231,7 @@ func (result *EccentricityResult) FormatEccentricityResult(gr *graph.Graph) stri
 		}
 	}
 
+	// Display center vertices (vertices with minimum eccentricity)
 	if len(result.CenterVertices) > 0 {
 		sb.WriteString("\nCENTER VERTICES (eccentricity = radius):\n")
 		for i, vertex := range result.CenterVertices {
@@ -221,6 +244,7 @@ func (result *EccentricityResult) FormatEccentricityResult(gr *graph.Graph) stri
 		}
 	}
 
+	// Display peripheral vertices (vertices with maximum eccentricity)
 	if len(result.PeripheralVertices) > 0 && result.Diameter != -1 {
 		sb.WriteString("\nPERIPHERAL VERTICES (eccentricity = diameter):\n")
 		for i, vertex := range result.PeripheralVertices {
@@ -236,12 +260,13 @@ func (result *EccentricityResult) FormatEccentricityResult(gr *graph.Graph) stri
 	return sb.String()
 }
 
+// formatDistance converts numerical distance to readable string
 func formatDistance(d int64) string {
 	if d == math.MaxInt64 {
-		return "∞ (unreachable)"
+		return "inf (unreachable)"
 	}
 	if d == -1 {
-		return "∞ (graph disconnected)"
+		return "inf (graph disconnected)"
 	}
 	return fmt.Sprintf("%d", d)
 }
