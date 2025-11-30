@@ -27,6 +27,7 @@ func (cli *CLIService) showAlgorithmsMenu() {
 		AddItem("All Pairs Shortest Path", "Find shortest paths between all vertices", '7', cli.showAllPairsShortestPath).
 		AddItem("Eccentricity and Radius", "Find eccentricity of vertices and graph radius", '8', cli.showEccentricityAndRadius).
 		AddItem("Negative Cycles", "Find all negative cycles using Bellman-Ford", '9', cli.showNegativeCycles).
+		AddItem("Maximum Flow", "Find maximum flow from source to sink", '0', cli.showMaxFlowForm).
 		AddItem("Back to Main Menu", "Return to main menu", 'q', func() {
 			cli.pages.SwitchToPage("main")
 		})
@@ -414,4 +415,48 @@ func (cli *CLIService) showNegativeCycles() {
 			cli.showScrollableModal("Negative Cycles", resultText, "algorithms_menu")
 		})
 	}()
+}
+
+func (cli *CLIService) showMaxFlowForm() {
+	form := tview.NewForm()
+	var sourceKey, sinkKey string
+
+	form.AddInputField("Source Node Key", "", 10, nil, func(text string) {
+		sourceKey = text
+	})
+	form.AddInputField("Sink Node Key", "", 10, nil, func(text string) {
+		sinkKey = text
+	})
+	form.AddButton("Find Max Flow", func() {
+		sourceVal, err := strconv.ParseUint(sourceKey, 10, 64)
+		if err != nil {
+			cli.updateStatus("Error: Invalid source key format", Error)
+			return
+		}
+
+		sinkVal, err := strconv.ParseUint(sinkKey, 10, 64)
+		if err != nil {
+			cli.updateStatus("Error: Invalid sink key format", Error)
+			return
+		}
+
+		result, err := algo.FindMaxFlow(cli.graph, graph.TKey(sourceVal), graph.TKey(sinkVal))
+
+		var resultText string
+		if err != nil {
+			resultText = fmt.Sprintf("Error: %v", err)
+			cli.updateStatus("Max flow calculation failed", Error)
+		} else {
+			resultText = result.FormatMaxFlowResult(cli.graph)
+			cli.updateStatus(fmt.Sprintf("Max flow: %d from %d to %d", result.MaxFlowValue, sourceVal, sinkVal), Success)
+		}
+
+		cli.showScrollableModal("Maximum Flow", resultText, "algorithms_menu")
+	})
+	form.AddButton("Cancel", func() {
+		cli.pages.SwitchToPage("algorithms_menu")
+	})
+
+	form.SetBorder(true).SetTitle(" Find Maximum Flow ")
+	cli.pages.AddAndSwitchToPage("max_flow", form, true)
 }

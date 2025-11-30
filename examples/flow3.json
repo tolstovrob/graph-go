@@ -1,0 +1,94 @@
+{
+  "nodes": {
+    "1": { "key": 1, "label": "Source" },
+    "2": { "key": 2, "label": "A" },
+    "3": { "key": 3, "label": "B" },
+    "4": { "key": 4, "label": "C" },
+    "5": { "key": 5, "label": "D" },
+    "6": { "key": 6, "label": "Sink" }
+  },
+  "edges": {
+    "1": {
+      "key": 1,
+      "source": 1,
+      "destination": 2,
+      "weight": 16,
+      "label": "S→A"
+    },
+    "2": {
+      "key": 2,
+      "source": 1,
+      "destination": 3,
+      "weight": 13,
+      "label": "S→B"
+    },
+    "3": {
+      "key": 3,
+      "source": 2,
+      "destination": 3,
+      "weight": 10,
+      "label": "A→B"
+    },
+    "4": {
+      "key": 4,
+      "source": 2,
+      "destination": 4,
+      "weight": 12,
+      "label": "A→C"
+    },
+    "5": {
+      "key": 5,
+      "source": 3,
+      "destination": 2,
+      "weight": 4,
+      "label": "B→A"
+    },
+    "6": {
+      "key": 6,
+      "source": 3,
+      "destination": 5,
+      "weight": 14,
+      "label": "B→D"
+    },
+    "7": {
+      "key": 7,
+      "source": 4,
+      "destination": 3,
+      "weight": 9,
+      "label": "C→B"
+    },
+    "8": {
+      "key": 8,
+      "source": 4,
+      "destination": 6,
+      "weight": 20,
+      "label": "C→T"
+    },
+    "9": {
+      "key": 9,
+      "source": 5,
+      "destination": 4,
+      "weight": 7,
+      "label": "D→C"
+    },
+    "10": {
+      "key": 10,
+      "source": 5,
+      "destination": 6,
+      "weight": 4,
+      "label": "D→T"
+    }
+  },
+  "adjacencyMap": {
+    "1": [2, 3],
+    "2": [3, 4],
+    "3": [2, 5],
+    "4": [3, 6],
+    "5": [4, 6],
+    "6": []
+  },
+  "options": {
+    "isMulti": false,
+    "IsDirected": true
+  }
+}
