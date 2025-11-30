@@ -13,28 +13,36 @@ import (
 )
 
 /*
- * Task: Find all negative cycles using exhaustive search
+ * Task: Find all negative cycles using Bellman-Ford algorithm
+ *
+ * Negative Cycle: A cycle in a graph where the sum of edge weights is negative
+ * Bellman-Ford Algorithm: Single-source shortest path algorithm that can detect negative cycles
+ * Time Complexity: O(V * E) for each source vertex, O(V^2 * E) total
  */
 
+// NegativeCycle represents a single negative cycle found in the graph
 type NegativeCycle struct {
-	Vertices    []graph.TKey  `json:"vertices"`
-	Edges       []graph.TKey  `json:"edges"`
-	TotalWeight graph.TWeight `json:"total_weight"`
+	Vertices    []graph.TKey  `json:"vertices"`     // Ordered list of vertices in the cycle
+	Edges       []graph.TKey  `json:"edges"`        // Ordered list of edges in the cycle
+	TotalWeight graph.TWeight `json:"total_weight"` // Sum of all edge weights in the cycle
 }
 
+// NegativeCyclesResult contains the complete result of negative cycle detection
 type NegativeCyclesResult struct {
-	Cycles            []NegativeCycle `json:"cycles"`
-	HasNegativeCycles bool            `json:"has_negative_cycles"`
-	TotalCycles       int             `json:"total_cycles"`
-	Message           string          `json:"message"`
+	Cycles            []NegativeCycle `json:"cycles"`              // List of all unique negative cycles found
+	HasNegativeCycles bool            `json:"has_negative_cycles"` // Whether any negative cycles exist
+	TotalCycles       int             `json:"total_cycles"`        // Count of unique negative cycles
+	Message           string          `json:"message"`             // Status message describing the result
 }
 
-// FindNegativeCycles finds all negative cycles in the graph
+// FindNegativeCycles finds all negative cycles in the graph using Bellman-Ford algorithm
+// This is the main entry point for negative cycle detection
 func FindNegativeCycles(gr *graph.Graph) (*NegativeCyclesResult, error) {
 	if gr.Nodes == nil {
 		return nil, graph.ThrowNodesListIsNil()
 	}
 
+	// Handle empty graph case - no cycles possible
 	if len(gr.Nodes) == 0 {
 		return &NegativeCyclesResult{
 			Cycles:            []NegativeCycle{},
@@ -44,12 +52,13 @@ func FindNegativeCycles(gr *graph.Graph) (*NegativeCyclesResult, error) {
 		}, nil
 	}
 
+	// Bellman-Ford requires directed graphs for negative cycle detection
 	if !gr.Options.IsDirected {
 		return &NegativeCyclesResult{
 			Cycles:            []NegativeCycle{},
 			HasNegativeCycles: false,
 			TotalCycles:       0,
-			Message:           "Negative cycle detection requires directed graph",
+			Message:           "Bellman-Ford algorithm for negative cycles requires directed graph",
 		}, nil
 	}
 
@@ -63,84 +72,59 @@ func FindNegativeCycles(gr *graph.Graph) (*NegativeCyclesResult, error) {
 	}, nil
 }
 
-// findAllNegativeCycles finds all negative cycles by checking all possible cycles
+// findAllNegativeCycles executes Bellman-Ford from each vertex to find all negative cycles
+// This is the core algorithm implementation
 func findAllNegativeCycles(gr *graph.Graph) []NegativeCycle {
-	keys := getSortedNodeKeys(gr.Nodes)
-	allCycles := []NegativeCycle{}
+	keys := getSortedNodeKeys(gr.Nodes)    // Get sorted vertices for consistent processing
+	allCycles := []NegativeCycle{}         // Store all found cycles
+	visitedCycles := make(map[string]bool) // Track seen cycles to avoid duplicates
 
-	// Check all possible cycles of length 2, 3, 4
-	for _, u := range keys {
-		for _, v := range keys {
-			if u == v {
-				continue
-			}
+	// Try each vertex as a potential starting point for cycle detection
+	for _, start := range keys {
+		dist := make(map[graph.TKey]graph.TWeight)  // Shortest distance estimates
+		prev := make(map[graph.TKey]graph.TKey)     // Predecessor vertices for path reconstruction
+		edgePrev := make(map[graph.TKey]graph.TKey) // Predecessor edges for cycle tracing
 
-			// Check 2-cycles (u->v->u)
-			edge1 := findEdge(gr, u, v)
-			edge2 := findEdge(gr, v, u)
-			if edge1 != nil && edge2 != nil {
-				totalWeight := edge1.Weight + edge2.Weight
-				if totalWeight < 0 {
-					cycle := NegativeCycle{
-						Vertices:    []graph.TKey{u, v, u},
-						Edges:       []graph.TKey{edge1.Key, edge2.Key},
-						TotalWeight: totalWeight,
-					}
-					if !containsCycle(allCycles, cycle) {
-						allCycles = append(allCycles, cycle)
-					}
+		// Initialize with large values representing infinity
+		infinity := graph.TWeight(1 << 30)
+		for _, key := range keys {
+			dist[key] = infinity
+		}
+		dist[start] = 0 // Distance to start vertex is 0
+
+		// Relaxation phase: |V| - 1 iterations of edge relaxation
+		for i := 0; i < len(keys)-1; i++ {
+			changed := false // Track if any distances were updated
+			for _, edge := range gr.Edges {
+				u, v, w := edge.Source, edge.Destination, edge.Weight
+				// If we found a shorter path through u to v, update
+				if dist[u] != infinity && dist[u]+w < dist[v] {
+					dist[v] = dist[u] + w
+					prev[v] = u
+					edgePrev[v] = edge.Key
+					changed = true
 				}
 			}
-
-			// Check 3-cycles (u->v->w->u)
-			for _, w := range keys {
-				if u == w || v == w {
-					continue
-				}
-
-				edge1 := findEdge(gr, u, v)
-				edge2 := findEdge(gr, v, w)
-				edge3 := findEdge(gr, w, u)
-
-				if edge1 != nil && edge2 != nil && edge3 != nil {
-					totalWeight := edge1.Weight + edge2.Weight + edge3.Weight
-					if totalWeight < 0 {
-						cycle := NegativeCycle{
-							Vertices:    []graph.TKey{u, v, w, u},
-							Edges:       []graph.TKey{edge1.Key, edge2.Key, edge3.Key},
-							TotalWeight: totalWeight,
-						}
-						if !containsCycle(allCycles, cycle) {
-							allCycles = append(allCycles, cycle)
-						}
-					}
-				}
+			// Early termination if no improvements in this iteration
+			if !changed {
+				break
 			}
+		}
 
-			// Check 4-cycles (u->v->w->x->u)
-			for _, w := range keys {
-				for _, x := range keys {
-					if u == w || u == x || v == w || v == x || w == x {
-						continue
-					}
-
-					edge1 := findEdge(gr, u, v)
-					edge2 := findEdge(gr, v, w)
-					edge3 := findEdge(gr, w, x)
-					edge4 := findEdge(gr, x, u)
-
-					if edge1 != nil && edge2 != nil && edge3 != nil && edge4 != nil {
-						totalWeight := edge1.Weight + edge2.Weight + edge3.Weight + edge4.Weight
-						if totalWeight < 0 {
-							cycle := NegativeCycle{
-								Vertices:    []graph.TKey{u, v, w, x, u},
-								Edges:       []graph.TKey{edge1.Key, edge2.Key, edge3.Key, edge4.Key},
-								TotalWeight: totalWeight,
-							}
-							if !containsCycle(allCycles, cycle) {
-								allCycles = append(allCycles, cycle)
-							}
-						}
+		// Negative cycle detection phase: check if we can still relax edges
+		for _, edge := range gr.Edges {
+			u, v, w := edge.Source, edge.Destination, edge.Weight
+			// If we can still improve after |V|-1 iterations, negative cycle exists
+			if dist[u] != infinity && dist[u]+w < dist[v] {
+				// Trace and reconstruct the actual cycle
+				cycle := traceCycle(gr, u, v, prev, edgePrev)
+				if cycle != nil {
+					// Normalize cycle representation and check for duplicates
+					normalized := normalizeCycle(*cycle)
+					cycleKey := generateCycleKey(normalized)
+					if !visitedCycles[cycleKey] && normalized.TotalWeight < 0 {
+						visitedCycles[cycleKey] = true
+						allCycles = append(allCycles, normalized)
 					}
 				}
 			}
@@ -150,61 +134,123 @@ func findAllNegativeCycles(gr *graph.Graph) []NegativeCycle {
 	return allCycles
 }
 
-// findEdge finds an edge between two vertices
-func findEdge(gr *graph.Graph, from, to graph.TKey) *graph.Edge {
-	for _, edge := range gr.Edges {
-		if edge.Source == from && edge.Destination == to {
-			return edge
+// traceCycle traces back from a negatively-weighted edge to find the actual cycle
+// Uses Floyd's cycle-finding algorithm (tortoise and hare)
+func traceCycle(gr *graph.Graph, u, v graph.TKey, prev, edgePrev map[graph.TKey]graph.TKey) *NegativeCycle {
+	// Use two pointers to detect cycle: slow moves 1 step, fast moves 2 steps
+	slow, fast := v, v
+
+	// Find meeting point inside the cycle
+	for i := 0; i < len(gr.Nodes); i++ {
+		if prev[fast] == 0 || prev[prev[fast]] == 0 {
+			return nil // Invalid pointers, no cycle found
 		}
-	}
-	return nil
-}
-
-// getSortedNodeKeys returns sorted node keys
-func getSortedNodeKeys(nodes map[graph.TKey]*graph.Node) []graph.TKey {
-	keys := make([]graph.TKey, 0, len(nodes))
-	for key := range nodes {
-		keys = append(keys, key)
-	}
-	sort.Slice(keys, func(i, j int) bool { return keys[i] < keys[j] })
-	return keys
-}
-
-// containsCycle checks if a cycle already exists in the list
-func containsCycle(cycles []NegativeCycle, newCycle NegativeCycle) bool {
-	for _, cycle := range cycles {
-		if areCyclesEqual(cycle, newCycle) {
-			return true
-		}
-	}
-	return false
-}
-
-// areCyclesEqual checks if two cycles are the same
-func areCyclesEqual(c1, c2 NegativeCycle) bool {
-	if len(c1.Vertices) != len(c2.Vertices) {
-		return false
-	}
-
-	// Normalize cycles by rotating to start with smallest vertex
-	norm1 := normalizeCycle(c1)
-	norm2 := normalizeCycle(c2)
-
-	for i := range norm1.Vertices {
-		if norm1.Vertices[i] != norm2.Vertices[i] {
-			return false
+		slow = prev[slow]
+		fast = prev[prev[fast]]
+		if slow == fast {
+			break // Cycle detected
 		}
 	}
 
-	return true
+	if slow != fast {
+		return nil // No cycle found
+	}
+
+	// Find the start node of the cycle
+	cycleStart := findCycleStart(slow, prev)
+	if cycleStart == 0 {
+		return nil
+	}
+
+	// Reconstruct the complete cycle
+	return reconstructCycle(gr, cycleStart, prev, edgePrev)
 }
 
-// normalizeCycle rotates the cycle to start with the smallest vertex
+// findCycleStart finds the starting node of a cycle using cycle length detection
+func findCycleStart(meetingPoint graph.TKey, prev map[graph.TKey]graph.TKey) graph.TKey {
+	// Determine cycle length by traversing until we return to meeting point
+	cycleLength := 0
+	current := meetingPoint
+	for {
+		current = prev[current]
+		cycleLength++
+		if current == meetingPoint {
+			break
+		}
+	}
+
+	// Use two pointers to find cycle start: one starts cycleLength steps ahead
+	ptr1 := meetingPoint
+	for i := 0; i < cycleLength; i++ {
+		ptr1 = prev[ptr1]
+	}
+
+	// Move both pointers until they meet at cycle start
+	ptr2 := meetingPoint
+	for ptr1 != ptr2 {
+		ptr1 = prev[ptr1]
+		ptr2 = prev[ptr2]
+	}
+
+	return ptr1
+}
+
+// reconstructCycle builds the complete cycle from predecessor information
+func reconstructCycle(gr *graph.Graph, start graph.TKey, prev, edgePrev map[graph.TKey]graph.TKey) *NegativeCycle {
+	cycleVertices := []graph.TKey{start}
+	cycleEdges := []graph.TKey{}
+	totalWeight := graph.TWeight(0)
+	visited := make(map[graph.TKey]bool)
+	visited[start] = true
+
+	// Reconstruct vertices in the cycle by following predecessor links
+	current := prev[start]
+	for current != start {
+		if current == 0 || visited[current] {
+			return nil // Invalid cycle
+		}
+		visited[current] = true
+		cycleVertices = append([]graph.TKey{current}, cycleVertices...)
+		current = prev[current]
+
+		// Safety check to prevent infinite loops
+		if len(cycleVertices) > len(gr.Nodes) {
+			return nil
+		}
+	}
+
+	// Reconstruct edges and calculate total weight
+	for i := 0; i < len(cycleVertices); i++ {
+		from := cycleVertices[i]
+		to := cycleVertices[(i+1)%len(cycleVertices)]
+
+		edge := findEdgeBetween(gr, from, to)
+		if edge == nil {
+			return nil
+		}
+
+		cycleEdges = append(cycleEdges, edge.Key)
+		totalWeight += edge.Weight
+	}
+
+	if len(cycleVertices) < 2 {
+		return nil
+	}
+
+	return &NegativeCycle{
+		Vertices:    cycleVertices,
+		Edges:       cycleEdges,
+		TotalWeight: totalWeight,
+	}
+}
+
+// normalizeCycle rotates the cycle to start with the smallest vertex for consistent comparison
 func normalizeCycle(cycle NegativeCycle) NegativeCycle {
 	if len(cycle.Vertices) == 0 {
 		return cycle
 	}
 
+	// Find the vertex with smallest key value
 	minIndex := 0
 	minVertex := cycle.Vertices[0]
 	for i, vertex := range cycle.Vertices {
@@ -214,23 +260,55 @@ func normalizeCycle(cycle NegativeCycle) NegativeCycle {
 		}
 	}
 
+	// Rotate cycle to start with smallest vertex
 	normalizedVertices := make([]graph.TKey, len(cycle.Vertices))
 	copy(normalizedVertices, cycle.Vertices[minIndex:])
 	copy(normalizedVertices[len(cycle.Vertices)-minIndex:], cycle.Vertices[:minIndex])
 
 	return NegativeCycle{
 		Vertices:    normalizedVertices,
-		Edges:       cycle.Edges, // Edges order doesn't matter for comparison
+		Edges:       cycle.Edges, // Edge order doesn't affect cycle identity
 		TotalWeight: cycle.TotalWeight,
 	}
 }
 
-// FormatNegativeCyclesResult creates a formatted string representation
+// generateCycleKey creates a unique string identifier for a cycle
+func generateCycleKey(cycle NegativeCycle) string {
+	vertices := make([]string, len(cycle.Vertices))
+	for i, v := range cycle.Vertices {
+		vertices[i] = fmt.Sprintf("%d", v)
+	}
+	return strings.Join(vertices, "-")
+}
+
+// Helper functions for graph operations
+
+// getSortedNodeKeys returns vertices sorted by key for consistent processing
+func getSortedNodeKeys(nodes map[graph.TKey]*graph.Node) []graph.TKey {
+	keys := make([]graph.TKey, 0, len(nodes))
+	for key := range nodes {
+		keys = append(keys, key)
+	}
+	sort.Slice(keys, func(i, j int) bool { return keys[i] < keys[j] })
+	return keys
+}
+
+// findEdgeBetween finds the edge between two vertices in the graph
+func findEdgeBetween(gr *graph.Graph, from, to graph.TKey) *graph.Edge {
+	for _, edge := range gr.Edges {
+		if edge.Source == from && edge.Destination == to {
+			return edge
+		}
+	}
+	return nil
+}
+
+// FormatNegativeCyclesResult creates a human-readable formatted output
 func (result *NegativeCyclesResult) FormatNegativeCyclesResult(gr *graph.Graph) string {
 	var sb strings.Builder
 
 	sb.WriteString("NEGATIVE CYCLES ANALYSIS\n\n")
-	sb.WriteString("Algorithm: Exhaustive Cycle Search\n")
+	sb.WriteString("Algorithm: Bellman-Ford\n")
 	sb.WriteString(fmt.Sprintf("Total vertices: %d\n", len(gr.Nodes)))
 	sb.WriteString(fmt.Sprintf("Total edges: %d\n", len(gr.Edges)))
 	sb.WriteString(fmt.Sprintf("Graph directed: %v\n", gr.Options.IsDirected))
@@ -240,11 +318,12 @@ func (result *NegativeCyclesResult) FormatNegativeCyclesResult(gr *graph.Graph) 
 	if !result.HasNegativeCycles {
 		sb.WriteString("No negative cycles found in the graph.\n")
 		if !gr.Options.IsDirected {
-			sb.WriteString("Note: Negative cycle detection requires directed graphs.\n")
+			sb.WriteString("Note: Bellman-Ford for negative cycles requires directed graphs.\n")
 		}
 		return sb.String()
 	}
 
+	// Display each found cycle with detailed information
 	for i, cycle := range result.Cycles {
 		sb.WriteString(fmt.Sprintf("NEGATIVE CYCLE %d:\n", i+1))
 		sb.WriteString(strings.Repeat("─", 40) + "\n")
@@ -252,9 +331,10 @@ func (result *NegativeCyclesResult) FormatNegativeCyclesResult(gr *graph.Graph) 
 		sb.WriteString(fmt.Sprintf("Length: %d vertices, %d edges\n\n", len(cycle.Vertices), len(cycle.Edges)))
 
 		sb.WriteString("CYCLE PATH:\n")
-		for j := 0; j < len(cycle.Vertices)-1; j++ {
+		// Display each edge in the cycle
+		for j := 0; j < len(cycle.Vertices); j++ {
 			current := cycle.Vertices[j]
-			next := cycle.Vertices[j+1]
+			next := cycle.Vertices[(j+1)%len(cycle.Vertices)]
 
 			currentNode, _ := gr.GetNodeByKey(current)
 			nextNode, _ := gr.GetNodeByKey(next)
@@ -267,7 +347,7 @@ func (result *NegativeCyclesResult) FormatNegativeCyclesResult(gr *graph.Graph) 
 				nextLabel = fmt.Sprintf(" (%s)", nextNode.Label)
 			}
 
-			edge := findEdge(gr, current, next)
+			edge := findEdgeBetween(gr, current, next)
 			var edgeLabel string
 			if edge != nil && edge.Label != "" {
 				edgeLabel = edge.Label
