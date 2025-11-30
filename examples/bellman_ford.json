@@ -1,0 +1,67 @@
+{
+  "nodes": {
+    "1": {
+      "key": 1,
+      "label": "A"
+    },
+    "2": {
+      "key": 2,
+      "label": "B"
+    },
+    "3": {
+      "key": 3,
+      "label": "C"
+    },
+    "4": {
+      "key": 4,
+      "label": "D"
+    }
+  },
+  "edges": {
+    "1": {
+      "key": 1,
+      "source": 1,
+      "destination": 2,
+      "weight": 1,
+      "label": "A->B"
+    },
+    "2": {
+      "key": 2,
+      "source": 2,
+      "destination": 3,
+      "weight": -2,
+      "label": "B->C"
+    },
+    "3": {
+      "key": 3,
+      "source": 3,
+      "destination": 4,
+      "weight": 1,
+      "label": "C->D"
+    },
+    "4": {
+      "key": 4,
+      "source": 4,
+      "destination": 1,
+      "weight": -1,
+      "label": "D->A"
+    },
+    "5": {
+      "key": 5,
+      "source": 2,
+      "destination": 4,
+      "weight": -3,
+      "label": "B->D"
+    }
+  },
+  "adjacencyMap": {
+    "1": [2],
+    "2": [3, 4],
+    "3": [4],
+    "4": [1]
+  },
+  "options": {
+    "isMulti": false,
+    "IsDirected": true
+  }
+}

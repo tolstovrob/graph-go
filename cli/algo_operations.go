@@ -26,6 +26,7 @@ func (cli *CLIService) showAlgorithmsMenu() {
 		AddItem("Minimum Spanning Tree", "Find MST using Prim's algorithm", '6', cli.showMSTPrim).
 		AddItem("All Pairs Shortest Path", "Find shortest paths between all vertices", '7', cli.showAllPairsShortestPath).
 		AddItem("Eccentricity and Radius", "Find eccentricity of vertices and graph radius", '8', cli.showEccentricityAndRadius).
+		AddItem("Negative Cycles", "Find all negative cycles using Bellman-Ford", '9', cli.showNegativeCycles).
 		AddItem("Back to Main Menu", "Return to main menu", 'q', func() {
 			cli.pages.SwitchToPage("main")
 		})
@@ -386,6 +387,31 @@ func (cli *CLIService) showEccentricityAndRadius() {
 			}
 
 			cli.showScrollableModal("Eccentricity and Radius", resultText, "algorithms_menu")
+		})
+	}()
+}
+
+func (cli *CLIService) showNegativeCycles() {
+	cli.updateStatus("Searching for negative cycles using Bellman-Ford algorithm...", Default)
+
+	go func() {
+		result, err := algo.FindNegativeCycles(cli.graph)
+
+		cli.app.QueueUpdateDraw(func() {
+			var resultText string
+			if err != nil {
+				resultText = fmt.Sprintf("Error: %v", err)
+				cli.updateStatus("Negative cycles search failed", Error)
+			} else {
+				resultText = result.FormatNegativeCyclesResult(cli.graph)
+				if result.HasNegativeCycles {
+					cli.updateStatus(fmt.Sprintf("Found %d negative cycle(s)", result.TotalCycles), Error)
+				} else {
+					cli.updateStatus("No negative cycles found", Success)
+				}
+			}
+
+			cli.showScrollableModal("Negative Cycles", resultText, "algorithms_menu")
 		})
 	}()
 }
