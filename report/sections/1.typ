@@ -708,5 +708,7 @@ func (gr *Graph) bfsComponentWithSize(start TKey, visited map[TKey]bool) int {
 ```
 
 == Пример интерфейса в консоли
-Примечание: в меню уже добавлены пункты, которые выполняли задания, которые были выданы на практике.
 
+#image("/assets/image.png")
+
+Реализация TUI CLI находится в пакете cli. 
