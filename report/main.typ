@@ -26,6 +26,6 @@
 
 //#intro
 //#conclusion
-#for value in ("1") {
+#for value in ("1", "2", "3", "4") {
   include "sections/" + value + ".typ"
 }

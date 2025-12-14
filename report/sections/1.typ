@@ -704,7 +704,6 @@ func (gr *Graph) bfsComponentWithSize(start TKey, visited map[TKey]bool) int {
 
 	return size
 }
-
 ```
 
 == Пример интерфейса в консоли
