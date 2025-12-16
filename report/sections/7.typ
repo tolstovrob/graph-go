@@ -1,4 +1,5 @@
-= Список смежности III
+= Построение минимального остовного дерева III
+
 == Условие
 Дан взвешенный неориентированный граф из N вершин и M ребер. Требуется найти в нем каркас минимального веса. Алгоритм Прима
 
@@ -178,5 +179,6 @@ func getEdgeBetweenReliable(gr *graph.Graph, u, v graph.TKey) *graph.Edge {
 	// No edge found between u and v
 	return nil
 }
-
 ```
+
+#image("/assets/image-14.png")

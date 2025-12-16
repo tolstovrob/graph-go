@@ -61,3 +61,5 @@ func InNodesInDirected(gr *graph.Graph, targetKey graph.TKey) ([]graph.TKey, err
 }
 
 ```
+
+#image("/assets/image-7.png")

@@ -1,4 +1,4 @@
-= Список смежности II
+= Список смежности I
 == Условие
 Выяснить, является ли граф связным.
 
@@ -43,3 +43,5 @@ func CanRemoveVertexToMakeTree(gr *graph.Graph) (bool, []graph.TKey, error) {
 ```
 
 Методы для проверки на связность описаны в структуре графа.
+
+#image("/assets/image-10.png")

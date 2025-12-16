@@ -41,3 +41,5 @@ func RemovePendantVertices(gr *graph.Graph) (*graph.Graph, error) {
 }
 
 ```
+
+#image("/assets/image-9.png")

@@ -1,4 +1,5 @@
-= Список смежности IVa
+= Потоки V
+
 == Условие
 Максимальный поток. Алгоритм Эдмонса Карпа
 
@@ -360,3 +361,5 @@ func (result *MaxFlowResult) FormatMaxFlowResult(gr *graph.Graph) string {
 	return sb.String()
 }
 ```
+
+#image("/assets/image-19.png")

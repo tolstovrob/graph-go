@@ -710,4 +710,83 @@ func (gr *Graph) bfsComponentWithSize(start TKey, visited map[TKey]bool) int {
 
 #image("/assets/image.png")
 
+#image("/assets/image-6.png")
+
 Реализация TUI CLI находится в пакете cli. 
+
+== Пример входного файла
+
+```json
+{
+  "nodes": {
+    "1": { "key": 1, "label": "A" },
+    "2": { "key": 2, "label": "B" },
+    "3": { "key": 3, "label": "C" },
+    "4": { "key": 4, "label": "D" },
+    "5": { "key": 5, "label": "E" }
+  },
+  "edges": {
+    "1": {
+      "key": 1,
+      "source": 1,
+      "destination": 2,
+      "weight": 5,
+      "label": "A->B"
+    },
+    "2": {
+      "key": 2,
+      "source": 1,
+      "destination": 3,
+      "weight": 9,
+      "label": "A->C"
+    },
+    "3": {
+      "key": 3,
+      "source": 1,
+      "destination": 4,
+      "weight": 1,
+      "label": "A->D"
+    },
+    "4": {
+      "key": 4,
+      "source": 2,
+      "destination": 3,
+      "weight": 2,
+      "label": "B->C"
+    },
+    "5": {
+      "key": 5,
+      "source": 3,
+      "destination": 4,
+      "weight": 6,
+      "label": "C->D"
+    },
+    "6": {
+      "key": 6,
+      "source": 3,
+      "destination": 5,
+      "weight": 3,
+      "label": "C->E"
+    },
+    "7": {
+      "key": 7,
+      "source": 4,
+      "destination": 5,
+      "weight": 4,
+      "label": "D->E"
+    }
+  },
+  "adjacencyMap": {
+    "1": [2, 3, 4],
+    "2": [3],
+    "3": [4, 5],
+    "4": [5],
+    "5": []
+  },
+  "options": {
+    "isMulti": false,
+    "IsDirected": true
+  }
+}
+
+```

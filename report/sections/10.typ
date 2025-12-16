@@ -1,4 +1,5 @@
-= Список смежности IVa
+= Взвешенный граф IVc
+
 == Условие
 Вывести все отрицательные циклы. Алгоритм Беллмана-Форда.
 
@@ -379,3 +380,6 @@ func (result *NegativeCyclesResult) FormatNegativeCyclesResult(gr *graph.Graph) 
 }
 
 ```
+
+#image("/assets/image-17.png")
+#image("/assets/image-18.png")

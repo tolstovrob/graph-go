@@ -1,4 +1,4 @@
-= Список смежности IVa
+= Взвешенный граф IVa
 == Условие
 Вывести длины кратчайших путей для всех пар вершин. Алгоритм Флойда.
 
@@ -277,6 +277,6 @@ func formatDistance(d int64) string {
 	}
 	return fmt.Sprintf("%d", d)
 }
-
-
 ```
+
+#image("/assets/image-15.png")
